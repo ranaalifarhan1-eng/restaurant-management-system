@@ -115,7 +115,7 @@
 
                 <p class="login-box-msg"><?php echo lang('please_login'); ?></p> 
 
-                <?php echo form_open(base_url('Authentication/loginCheck')); ?>
+                <?php echo form_open('Authentication/loginCheck'); ?>
                 <div class="form-group has-feedback">
                     <input type="text" class="form-control" name="email_address" placeholder="<?php echo lang('email_address'); ?>">
                     <span class="glyphicon glyphicon-envelope form-control-feedback"></span>
