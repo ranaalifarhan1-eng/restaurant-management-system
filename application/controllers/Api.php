@@ -183,9 +183,20 @@ class Api extends CI_Controller {
         $user = $this->check_auth();
 
         $this->load->model('Sale_model');
-        $waiters = $this->Sale_model->getWaitersForThisCompany($user->company_id, 'tbl_users');
+        $raw_waiters = $this->Sale_model->getWaitersForThisCompany($user->company_id, 'tbl_users');
+        
+        $safe_waiters = array_map(function($w) {
+            return [
+                'id' => $w->id,
+                'full_name' => $w->full_name,
+                'phone' => $w->phone,
+                'designation' => $w->designation,
+                'email_address' => $w->email_address,
+                'active_status' => $w->active_status
+            ];
+        }, $raw_waiters);
 
-        $this->response(true, 'Waiters retrieved successfully', $waiters);
+        $this->response(true, 'Waiters retrieved successfully', $safe_waiters);
     }
 
     public function payment_methods() {
