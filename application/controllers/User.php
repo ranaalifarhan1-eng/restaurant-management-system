@@ -104,7 +104,8 @@ class User extends CI_Controller {
                 $user_info['designation'] = $this->input->post($this->security->xss_clean('designation'));
                 $user_info['will_login'] = $this->input->post($this->security->xss_clean('will_login'));
                 if($this->input->post($this->security->xss_clean('will_login'))=='Yes'){
-                    $user_info['password'] = $this->input->post($this->security->xss_clean('password'));
+                    $raw_password = $this->input->post($this->security->xss_clean('password'));
+                    $user_info['password'] = password_hash($raw_password, PASSWORD_BCRYPT);
                     $user_info['role'] = (is_null($this->input->post('user_type')) || $this->input->post('user_type')=="")?'User':$this->input->post('user_type');
                 }
                 $user_info['outlet_id'] = $outlet_id;

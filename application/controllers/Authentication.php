@@ -59,11 +59,32 @@ class Authentication extends CI_Controller {
         if ($this->form_validation->run() == TRUE) {
             $email_address = $this->input->post($this->security->xss_clean('email_address'));
             $password = $this->input->post($this->security->xss_clean('password'));
-            $user_information = $this->Authentication_model->getUserInformation($email_address, $password);
+            
+            // Password migration: Fetch user by email only, then securely verify password
+            $user_information = $this->Authentication_model->getUserByEmail($email_address);
 
-
-            //If user exists
+            $valid_login = false;
             if ($user_information) {
+                // Verify against a standard Bcrypt hash
+                if (password_verify($password, $user_information->password)) {
+                    $valid_login = true;
+                    if (password_needs_rehash($user_information->password, PASSWORD_BCRYPT)) {
+                        $new_hash = password_hash($password, PASSWORD_BCRYPT);
+                        $this->Authentication_model->updatePassword($new_hash, $user_information->id);
+                        $user_information->password = $new_hash;
+                    }
+                } 
+                // Fallback for migrating un-hashed plaintext users (will be immediately rehashed)
+                else if ($password === $user_information->password) {
+                    $valid_login = true;
+                    $new_hash = password_hash($password, PASSWORD_BCRYPT);
+                    $this->Authentication_model->updatePassword($new_hash, $user_information->id);
+                    $user_information->password = $new_hash;
+                }
+            }
+
+            //If user exists & password is valid
+            if ($valid_login) {
 
                 //If the user is Active
                 if ($user_information->active_status == 'Active') {
@@ -269,8 +290,9 @@ class Authentication extends CI_Controller {
 
                 if ($password_check) {
                     $new_password = $this->input->post($this->security->xss_clean('new_password'));
+                    $new_password_hash = password_hash($new_password, PASSWORD_BCRYPT);
 
-                    $this->Authentication_model->updatePassword($new_password, $user_id);
+                    $this->Authentication_model->updatePassword($new_password_hash, $user_id);
 
                     mail($this->session->userdata['email_address'], "Change Password", "Your new password is : " . $new_password);
 
@@ -309,8 +331,9 @@ class Authentication extends CI_Controller {
 
                 if ($password_check) {
                     $new_password = $this->input->post($this->security->xss_clean('new_password'));
+                    $new_password_hash = password_hash($new_password, PASSWORD_BCRYPT);
 
-                    $this->Authentication_model->updatePassword($new_password, $user_id);
+                    $this->Authentication_model->updatePassword($new_password_hash, $user_id);
 
                     $this->session->set_flashdata('exception', lang('password_changed'));
                     redirect('Authentication/passwordChange');
@@ -346,8 +369,9 @@ class Authentication extends CI_Controller {
                 $user_id = $user_details->id;
 
                 $auto_generated_password = mt_rand(100000, 999999);
+                $new_password_hash = password_hash($auto_generated_password, PASSWORD_BCRYPT);
 
-                $this->Authentication_model->updatePassword($auto_generated_password, $user_id);
+                $this->Authentication_model->updatePassword($new_password_hash, $user_id);
 
                 //Send Password by Email
                 $this->load->library('email');

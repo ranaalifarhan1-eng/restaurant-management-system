@@ -155,41 +155,50 @@ class Common_model extends CI_Model {
 
     public function getPurchasePaidAmount($month) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $ppaid = $this->db->query("SELECT IFNULL(SUM(p.paid),0) as ppaid
+        $sql = "SELECT IFNULL(SUM(p.paid),0) as ppaid
         FROM tbl_purchase p  
-        WHERE p.outlet_id=$outlet_id AND p.del_status = 'Live'
-        AND p.date LIKE '$month%' ")->row('ppaid');
+        WHERE p.outlet_id = ? AND p.del_status = 'Live'
+        AND p.date LIKE ?";
+        $safe_month = $this->db->escape_like_str($month) . '%';
+        $ppaid = $this->db->query($sql, array($outlet_id, $safe_month))->row('ppaid');
         return $ppaid;
     }
 
     public function getPurchaseAmount($month) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $totalPurchase = $this->db->query("SELECT IFNULL(SUM(p.grand_total),0) as totalPurchase
+        $sql = "SELECT IFNULL(SUM(p.grand_total),0) as totalPurchase
         FROM tbl_purchase p  
-        WHERE p.outlet_id=$outlet_id AND p.del_status = 'Live'
-        AND p.date LIKE '$month%' ")->row('totalPurchase');
+        WHERE p.outlet_id = ? AND p.del_status = 'Live'
+        AND p.date LIKE ?";
+        $safe_month = $this->db->escape_like_str($month) . '%';
+        $totalPurchase = $this->db->query($sql, array($outlet_id, $safe_month))->row('totalPurchase');
         return $totalPurchase;
     }
 
     public function getSupplierPaidAmount($month) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $partypaid = $this->db->query("SELECT IFNULL(SUM(p.amount),0) as partypaid
+        $sql = "SELECT IFNULL(SUM(p.amount),0) as partypaid
         FROM tbl_supplier_payments p  
-        WHERE p.outlet_id=$outlet_id AND p.del_status = 'Live'
-        AND p.date LIKE '$month%' ")->row('partypaid');
+        WHERE p.outlet_id = ? AND p.del_status = 'Live'
+        AND p.date LIKE ?";
+        $safe_month = $this->db->escape_like_str($month) . '%';
+        $partypaid = $this->db->query($sql, array($outlet_id, $safe_month))->row('partypaid');
         return $partypaid;
     }
 
     public function getSalePaidAmount($month, $payment_method_id = FALSE) {
         $outlet_id = $this->session->userdata('outlet_id');
+        $bindings = array($outlet_id, $this->db->escape_like_str($month) . '%');
         $condition = " ";
         if ($payment_method_id != FALSE) {
-            $condition = " AND s.payment_method_id=$payment_method_id";
+            $condition = " AND s.payment_method_id = ?";
+            $bindings[] = $payment_method_id;
         }
-        $totalSale = $this->db->query("SELECT IFNULL(SUM(s.total_payable),0) as totalSale
+        $sql = "SELECT IFNULL(SUM(s.total_payable),0) as totalSale
         FROM tbl_sales s  
-        WHERE s.outlet_id=$outlet_id AND s.del_status = 'Live'
-        AND s.sale_date LIKE '$month%' $condition")->row('totalSale');
+        WHERE s.outlet_id = ? AND s.del_status = 'Live'
+        AND s.sale_date LIKE ? $condition";
+        $totalSale = $this->db->query($sql, $bindings)->row('totalSale');
         return $totalSale;
     }
     public function getMenuByMenuName($menu_name){

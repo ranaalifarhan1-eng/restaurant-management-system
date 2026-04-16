@@ -17,41 +17,47 @@ class Dashboard_model extends CI_Model {
 //dddddddddddddddddddddddddddddddddddddddddddddddddddd
     public function getPurchasePaidAmount($month) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $ppaid = $this->db->query("SELECT IFNULL(SUM(p.paid),0) as ppaid
+        $sql = "SELECT IFNULL(SUM(p.paid),0) as ppaid
         FROM tbl_purchase p  
-        WHERE p.outlet_id=$outlet_id AND p.del_status = 'Live'
-        AND p.date LIKE '$month%' ")->row('ppaid');
+        WHERE p.outlet_id = ? AND p.del_status = 'Live'
+        AND p.date LIKE ?";
+        $ppaid = $this->db->query($sql, array($outlet_id, $this->db->escape_like_str($month) . '%'))->row('ppaid');
         return $ppaid;
     }
 
     public function getPurchaseAmount($month) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $totalPurchase = $this->db->query("SELECT IFNULL(SUM(p.grand_total),0) as totalPurchase
+        $sql = "SELECT IFNULL(SUM(p.grand_total),0) as totalPurchase
         FROM tbl_purchase p  
-        WHERE p.outlet_id=$outlet_id AND p.del_status = 'Live'
-        AND p.date LIKE '$month%' ")->row('totalPurchase');
+        WHERE p.outlet_id = ? AND p.del_status = 'Live'
+        AND p.date LIKE ?";
+        $totalPurchase = $this->db->query($sql, array($outlet_id, $this->db->escape_like_str($month) . '%'))->row('totalPurchase');
         return $totalPurchase;
     }
 
     public function getSupplierPaidAmount($month) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $partypaid = $this->db->query("SELECT IFNULL(SUM(p.amount),0) as partypaid
+        $sql = "SELECT IFNULL(SUM(p.amount),0) as partypaid
         FROM tbl_supplier_payments p  
-        WHERE p.outlet_id=$outlet_id AND p.del_status = 'Live'
-        AND p.date LIKE '$month%' ")->row('partypaid');
+        WHERE p.outlet_id = ? AND p.del_status = 'Live'
+        AND p.date LIKE ?";
+        $partypaid = $this->db->query($sql, array($outlet_id, $this->db->escape_like_str($month) . '%'))->row('partypaid');
         return $partypaid;
     }
 
     public function getSalePaidAmount($month, $payment_method_id = FALSE) {
         $outlet_id = $this->session->userdata('outlet_id');
+        $bindings = array($outlet_id, $this->db->escape_like_str($month) . '%');
         $condition = " ";
         if ($payment_method_id != FALSE) {
-            $condition = " AND s.payment_method_id=$payment_method_id";
+            $condition = " AND s.payment_method_id = ?";
+            $bindings[] = $payment_method_id;
         }
-        $totalSale = $this->db->query("SELECT IFNULL(SUM(s.total_payable),0) as totalSale
+        $sql = "SELECT IFNULL(SUM(s.total_payable),0) as totalSale
         FROM tbl_sales s  
-        WHERE s.outlet_id=$outlet_id AND s.del_status = 'Live'
-        AND s.sale_date LIKE '$month%' $condition")->row('totalSale');
+        WHERE s.outlet_id = ? AND s.del_status = 'Live'
+        AND s.sale_date LIKE ? $condition";
+        $totalSale = $this->db->query($sql, $bindings)->row('totalSale');
         return $totalSale;
     }
     public function getMenuByMenuName($menu_name){
@@ -72,28 +78,31 @@ class Dashboard_model extends CI_Model {
 
     public function getSaleVat($month) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $totalSaleVat = $this->db->query("SELECT IFNULL(SUM(s.vat),0) as totalSaleVat
+        $sql = "SELECT IFNULL(SUM(s.vat),0) as totalSaleVat
         FROM tbl_sales s  
-        WHERE s.outlet_id=$outlet_id AND s.del_status = 'Live'
-        AND s.sale_date LIKE '$month%'")->row('totalSaleVat');
+        WHERE s.outlet_id = ? AND s.del_status = 'Live'
+        AND s.sale_date LIKE ?";
+        $totalSaleVat = $this->db->query($sql, array($outlet_id, $this->db->escape_like_str($month) . '%'))->row('totalSaleVat');
         return $totalSaleVat;
     }
 
     public function getWaste($month) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $totalWaste = $this->db->query("SELECT IFNULL(SUM(w.total_loss),0) as totalWaste
+        $sql = "SELECT IFNULL(SUM(w.total_loss),0) as totalWaste
         FROM tbl_wastes w  
-        WHERE w.outlet_id=$outlet_id AND w.del_status = 'Live'
-        AND w.date LIKE '$month%'")->row('totalWaste');
+        WHERE w.outlet_id = ? AND w.del_status = 'Live'
+        AND w.date LIKE ?";
+        $totalWaste = $this->db->query($sql, array($outlet_id, $this->db->escape_like_str($month) . '%'))->row('totalWaste');
         return $totalWaste;
     }
 
     public function getExpense($month) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $totalExpense = $this->db->query("SELECT IFNULL(SUM(w.amount),0) as totalExpense
+        $sql = "SELECT IFNULL(SUM(w.amount),0) as totalExpense
         FROM tbl_expenses w  
-        WHERE w.outlet_id=$outlet_id AND w.del_status = 'Live'
-        AND w.date LIKE '$month%'")->row('totalExpense');
+        WHERE w.outlet_id = ? AND w.del_status = 'Live'
+        AND w.date LIKE ?";
+        $totalExpense = $this->db->query($sql, array($outlet_id, $this->db->escape_like_str($month) . '%'))->row('totalExpense');
         return $totalExpense;
     }
 
@@ -338,7 +347,8 @@ class Dashboard_model extends CI_Model {
 
     public function comparison_sale_report($start_date, $end_date) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $query = $this->db->query("select year(sale_date) as year, month(sale_date) as month, sum(total_payable) as total_amount from tbl_sales WHERE `sale_date` BETWEEN '$start_date' AND '$end_date' AND outlet_id='$outlet_id' group by year(sale_date), month(sale_date)");
+        $sql = "select year(sale_date) as year, month(sale_date) as month, sum(total_payable) as total_amount from tbl_sales WHERE `sale_date` BETWEEN ? AND ? AND outlet_id = ? group by year(sale_date), month(sale_date)";
+        $query = $this->db->query($sql, array($start_date, $end_date, $outlet_id));
         return $query->row();
     }
 

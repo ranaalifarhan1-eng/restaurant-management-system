@@ -75,10 +75,10 @@ $query_builder = TRUE;
 
 $db['default'] = array(
 	'dsn'	=> '',
-	'hostname' => 'localhost',
-	'username' => 'googleadsexprt_restrodb',
-	'password' => 'Location@0310',
-	'database' => 'googleadsexprt_restrodb',
+	'hostname' => getenv('DB_HOSTNAME') ?: 'localhost',
+	'username' => getenv('DB_USERNAME') ?: 'googleadsexprt_restrodb',
+	'password' => getenv('DB_PASSWORD') ?: 'Location@0310',
+	'database' => getenv('DB_DATABASE') ?: 'googleadsexprt_restrodb',
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',
 	'pconnect' => FALSE,

@@ -35,6 +35,15 @@ class Authentication_model extends CI_Model {
         return $this->db->get()->row();
     }
 
+    public function getUserByEmail($email_address) {
+        $this->db->select("*");
+        $this->db->from("tbl_users");
+        $this->db->where("email_address", $email_address);
+        $this->db->where("active_status", 'Active');
+        $this->db->where("del_status", 'Live');
+        return $this->db->get()->row();
+    }
+
     public function updateUserInfo($company_id, $user_id) {
         $this->db->set('company_id', $company_id);
         $this->db->where('id', $user_id);
@@ -67,8 +76,13 @@ class Authentication_model extends CI_Model {
     }
 
     public function passwordCheck($old_password, $user_id) {
-        $row = $this->db->query("SELECT * FROM tbl_users WHERE id=$user_id AND password='$old_password'")->row();
-        return $row;
+        $row = $this->db->query("SELECT * FROM tbl_users WHERE id = ?", array($user_id))->row();
+        if ($row) {
+            if (password_verify($old_password, $row->password) || $old_password === $row->password) {
+                return $row;
+            }
+        }
+        return false;
     }
 
     public function updatePassword($new_password, $user_id) {
@@ -78,11 +92,11 @@ class Authentication_model extends CI_Model {
     }
 
     public function getMenuAccessInformation($user_id) {
-        $result = $this->db->query("SELECT tbl_admin_user_menus.controller_name as controller_name
+        $sql = "SELECT tbl_admin_user_menus.controller_name as controller_name
           FROM tbl_user_menu_access
           JOIN tbl_admin_user_menus ON tbl_user_menu_access.menu_id =  tbl_admin_user_menus.id
-          WHERE tbl_user_menu_access.user_id=$user_id
-          ")->result();
+          WHERE tbl_user_menu_access.user_id = ?";
+        $result = $this->db->query($sql, array($user_id))->result();
         return $result;
     }
 
