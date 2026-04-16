@@ -132,4 +132,47 @@ class Api extends CI_Controller {
              'outlet_id' => $user->outlet_id
         ]);
     }
+
+    public function categories() {
+        if ($this->input->server('REQUEST_METHOD') !== 'GET') {
+            $this->response(false, 'Method not allowed');
+        }
+        $user = $this->check_auth();
+
+        $categories = $this->Sale_model->getFoodMenuCategories($user->company_id);
+        $this->response(true, 'Categories retrieved successfully', $categories);
+    }
+
+    public function customers() {
+        if ($this->input->server('REQUEST_METHOD') !== 'GET') {
+            $this->response(false, 'Method not allowed');
+        }
+        $user = $this->check_auth();
+
+        $customers = $this->Common_model->getAllByCompanyIdForDropdown($user->company_id, 'tbl_customers');
+        $this->response(true, 'Customers retrieved successfully', $customers);
+    }
+
+    public function settings_summary() {
+        if ($this->input->server('REQUEST_METHOD') !== 'GET') {
+            $this->response(false, 'Method not allowed');
+        }
+        $user = $this->check_auth();
+
+        $company = $this->db->get_where('tbl_companies', ['id' => $user->company_id])->row();
+        $outlet = $this->db->get_where('tbl_outlets', ['id' => $user->outlet_id])->row();
+        $settings = $this->db->get_where('tbl_settings', ['company_id' => $user->company_id])->row();
+
+        $summary = [
+            'company_id' => $user->company_id,
+            'outlet_id' => $user->outlet_id,
+            'restaurant_name' => $company ? $company->business_name : null,
+            'outlet_name' => $outlet ? $outlet->outlet_name : null,
+            'currency' => $settings ? $settings->currency : null,
+            'timezone' => $settings ? $settings->time_zone : null,
+            'date_format' => $settings ? $settings->date_format : null,
+        ];
+
+        $this->response(true, 'Settings summary retrieved', $summary);
+    }
 }

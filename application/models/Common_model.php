@@ -219,28 +219,31 @@ class Common_model extends CI_Model {
 
     public function getSaleVat($month) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $totalSaleVat = $this->db->query("SELECT IFNULL(SUM(s.vat),0) as totalSaleVat
+        $sql = "SELECT IFNULL(SUM(s.vat),0) as totalSaleVat
         FROM tbl_sales s  
-        WHERE s.outlet_id=$outlet_id AND s.del_status = 'Live'
-        AND s.sale_date LIKE '$month%'")->row('totalSaleVat');
+        WHERE s.outlet_id = ? AND s.del_status = 'Live'
+        AND s.sale_date LIKE ?";
+        $totalSaleVat = $this->db->query($sql, array($outlet_id, $this->db->escape_like_str($month) . '%'))->row('totalSaleVat');
         return $totalSaleVat;
     }
 
     public function getWaste($month) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $totalWaste = $this->db->query("SELECT IFNULL(SUM(w.total_loss),0) as totalWaste
+        $sql = "SELECT IFNULL(SUM(w.total_loss),0) as totalWaste
         FROM tbl_wastes w  
-        WHERE w.outlet_id=$outlet_id AND w.del_status = 'Live'
-        AND w.date LIKE '$month%'")->row('totalWaste');
+        WHERE w.outlet_id = ? AND w.del_status = 'Live'
+        AND w.date LIKE ?";
+        $totalWaste = $this->db->query($sql, array($outlet_id, $this->db->escape_like_str($month) . '%'))->row('totalWaste');
         return $totalWaste;
     }
 
     public function getExpense($month) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $totalExpense = $this->db->query("SELECT IFNULL(SUM(w.amount),0) as totalExpense
+        $sql = "SELECT IFNULL(SUM(w.amount),0) as totalExpense
         FROM tbl_expenses w  
-        WHERE w.outlet_id=$outlet_id AND w.del_status = 'Live'
-        AND w.date LIKE '$month%'")->row('totalExpense');
+        WHERE w.outlet_id = ? AND w.del_status = 'Live'
+        AND w.date LIKE ?";
+        $totalExpense = $this->db->query($sql, array($outlet_id, $this->db->escape_like_str($month) . '%'))->row('totalExpense');
         return $totalExpense;
     }
 
@@ -320,7 +323,8 @@ class Common_model extends CI_Model {
 
     public function comparison_sale_report($start_date, $end_date) {
         $outlet_id = $this->session->userdata('outlet_id');
-        $query = $this->db->query("select year(sale_date) as year, month(sale_date) as month, sum(total_payable) as total_amount from tbl_sales WHERE `sale_date` BETWEEN '$start_date' AND '$end_date' AND outlet_id='$outlet_id' group by year(sale_date), month(sale_date)");
+        $sql = "select year(sale_date) as year, month(sale_date) as month, sum(total_payable) as total_amount from tbl_sales WHERE `sale_date` BETWEEN ? AND ? AND outlet_id = ? group by year(sale_date), month(sale_date)";
+        $query = $this->db->query($sql, array($start_date, $end_date, $outlet_id));
         return $query->row();
     }
 
