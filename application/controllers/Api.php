@@ -166,7 +166,7 @@ class Api extends CI_Controller {
         $summary = [
             'company_id' => $user->company_id,
             'outlet_id' => $user->outlet_id,
-            'restaurant_name' => $company ? $company->business_name : null,
+            'restaurant_name' => $outlet ? $outlet->outlet_name : null,
             'outlet_name' => $outlet ? $outlet->outlet_name : null,
             'currency' => $settings ? $settings->currency : null,
             'timezone' => $settings ? $settings->time_zone : null,
@@ -174,5 +174,29 @@ class Api extends CI_Controller {
         ];
 
         $this->response(true, 'Settings summary retrieved', $summary);
+    }
+
+    public function waiters() {
+        if ($this->input->server('REQUEST_METHOD') !== 'GET') {
+            $this->response(false, 'Method not allowed');
+        }
+        $user = $this->check_auth();
+
+        $this->load->model('Sale_model');
+        $waiters = $this->Sale_model->getWaitersForThisCompany($user->company_id, 'tbl_users');
+
+        $this->response(true, 'Waiters retrieved successfully', $waiters);
+    }
+
+    public function payment_methods() {
+        if ($this->input->server('REQUEST_METHOD') !== 'GET') {
+            $this->response(false, 'Method not allowed');
+        }
+        $user = $this->check_auth();
+
+        $this->load->model('Sale_model');
+        $methods = $this->Sale_model->getAllPaymentMethods();
+
+        $this->response(true, 'Payment methods retrieved successfully', $methods);
     }
 }
