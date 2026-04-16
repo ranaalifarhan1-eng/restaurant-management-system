@@ -1,326 +1,135 @@
 <?php
-
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-// This can be removed if you use __autoload() in config.php OR use Modular Extensions
-/** @noinspection PhpIncludeInspection */
-require APPPATH . 'libraries/REST_Controller.php';
+class Api extends CI_Controller {
 
-/**
- * This is an example of a few basic user interaction methods you could use
- * all done with a hardcoded array
- *
- * @package         CodeIgniter
- * @subpackage      Rest Server
- * @category        Controller
- * @author          Phil Sturgeon, Chris Kacerguis
- * @license         MIT
- * @link            https://github.com/chriskacerguis/codeigniter-restserver
- */
-class Api extends REST_Controller {
-
-    function __construct()
-    {
-        // Construct the parent class
+    public function __construct() {
         parent::__construct();
-
         $this->load->model('Authentication_model');
         $this->load->model('Common_model');
         $this->load->model('Sale_model');
-        $this->load->model('Master_model');
-        $this->Common_model->setDefaultTimezone();
-
-        // Configure limits on our controller methods
-        // Ensure you have created the 'limits' table and enabled 'limits' within application/config/rest.php
-        $this->methods['users_get']['limit'] = 500; // 500 requests per hour per user/key
-        $this->methods['users_post']['limit'] = 100; // 100 requests per hour per user/key
-        $this->methods['users_delete']['limit'] = 50; // 50 requests per hour per user/key
-        $this->post = $_REQUEST;
+        header('Content-Type: application/json');
     }
 
-    public function users_get()
-    {
-        // Users from a data store e.g. database
-        $users = [
-            ['id' => 1, 'name' => 'John', 'email' => 'john@example.com', 'fact' => 'Loves coding'],
-            ['id' => 2, 'name' => 'Jim', 'email' => 'jim@example.com', 'fact' => 'Developed on CodeIgniter'],
-            ['id' => 3, 'name' => 'Jane', 'email' => 'jane@example.com', 'fact' => 'Lives in the USA', ['hobbies' => ['guitar', 'cycling']]],
-        ];
+    private function response($status, $message, $data = []) {
+        echo json_encode([
+            'status' => $status,
+            'message' => $message,
+            'data' => $data
+        ]);
+        exit;
+    }
 
-        $id = $this->get('id');
-
-        // If the id parameter doesn't exist return all the users
-
-        if ($id === NULL)
-        {
-            // Check if the users data store contains users (in case the database result returns NULL)
-            if ($users)
-            {
-                // Set the response and exit
-                $this->response($users, REST_Controller::HTTP_OK); // OK (200) being the HTTP response code
-            }
-            else
-            {
-                // Set the response and exit
-                $this->response([
-                    'status' => FALSE,
-                    'message' => 'No users were found'
-                ], REST_Controller::HTTP_NOT_FOUND); // NOT_FOUND (404) being the HTTP response code
-            }
+    private function check_auth() {
+        $headers = $this->input->request_headers();
+        $auth_header = isset($headers['Authorization']) ? $headers['Authorization'] : '';
+        if (!$auth_header && isset($_SERVER['HTTP_AUTHORIZATION'])) {
+            $auth_header = $_SERVER['HTTP_AUTHORIZATION'];
         }
 
-        // Find and return a single record for a particular user.
+        if (preg_match('/Bearer\s(\S+)/', $auth_header, $matches)) {
+            $token_plaintext = $matches[1];
+            $token_hash = hash('sha256', $token_plaintext);
 
-        $id = (int) $id;
+            // Verify against real DB authentication table
+            $auth_record = $this->db->get_where('tbl_api_tokens', [
+                'token_hash' => $token_hash,
+                'revoked' => 0,
+                'expires_at >=' => date('Y-m-d H:i:s')
+            ])->row();
 
-        // Validate the id.
-        if ($id <= 0)
-        {
-            // Invalid id, set the response and exit.
-            $this->response(NULL, REST_Controller::HTTP_BAD_REQUEST); // BAD_REQUEST (400) being the HTTP response code
-        }
-
-        // Get the user from the array, using the id as key for retrieval.
-        // Usually a model is to be used for this.
-
-        $user = NULL;
-
-        if (!empty($users))
-        {
-            foreach ($users as $key => $value)
-            {
-                if (isset($value['id']) && $value['id'] === $id)
-                {
-                    $user = $value;
+            if ($auth_record) {
+                $user = $this->db->get_where('tbl_users', ['id' => $auth_record->user_id, 'del_status' => 'Live'])->row();
+                if ($user) {
+                    return $user;
                 }
             }
         }
-
-        if (!empty($user))
-        {
-            $this->set_response($user, REST_Controller::HTTP_OK); // OK (200) being the HTTP response code
-        }
-        else
-        {
-            $this->set_response([
-                'status' => FALSE,
-                'message' => 'User could not be found'
-            ], REST_Controller::HTTP_NOT_FOUND); // NOT_FOUND (404) being the HTTP response code
-        }
+        $this->response(false, 'Unauthorized. Invalid, expired, or revoked token.', []);
     }
 
-    public function users_post()
-    {
-        // $this->some_model->update_user( ... );
-        $message = [
-            'id' => 100, // Automatically generated by the model
-            'name' => $this->post('name'),
-            'email' => $this->post('email'),
-            'message' => 'Added a resource'
-        ];
-
-        $this->set_response($message, REST_Controller::HTTP_CREATED); // CREATED (201) being the HTTP response code
-    }
-
-    public function users_delete()
-    {
-        $id = (int) $this->get('id');
-
-        // Validate the id.
-        if ($id <= 0)
-        {
-            // Set the response and exit
-            $this->response(NULL, REST_Controller::HTTP_BAD_REQUEST); // BAD_REQUEST (400) being the HTTP response code
+    public function login() {
+        if ($this->input->server('REQUEST_METHOD') !== 'POST') {
+            $this->response(false, 'Method not allowed');
         }
 
-        // $this->some_model->delete_something($id);
-        $message = [
-            'id' => $id,
-            'message' => 'Deleted the resource'
-        ];
+        $input = json_decode(file_get_contents('php://input'), true);
+        $email = isset($input['email']) ? $input['email'] : $this->input->post('email');
+        $password = isset($input['password']) ? $input['password'] : $this->input->post('password');
 
-        $this->set_response($message, REST_Controller::HTTP_NO_CONTENT); // NO_CONTENT (204) being the HTTP response code
-    }
-    public function demo_get()
-    {
-        $message = [
-            'name' => 'Codeigniter rest api',
-            'city' => 'Chittagong'
-        ];
-        $this->set_response($message,REST_Controller::HTTP_OK);
-    }
-    public function show_post()
-    {
-        $name = $this->post['name'];
-        $city = $this->post['city'];
-
-        $message = [
-            'name' => $name,
-            'city' => $city
-        ];
-        $this->set_response($message,REST_Controller::HTTP_OK);
-    }
-    public function POS_Initial_get(){
-        $company_id = $this->session->userdata('company_id');
-        $outlet_id = $this->session->userdata('outlet_id');
-        $data = array();
-        $data['vatamount'] = $this->db->query("SELECT percentage FROM tbl_vats WHERE id=1")->row('percentage');
-        $data['tables'] = $this->Common_model->getAllByCompanyIdForDropdown($company_id, 'tbl_tables');
-        $data['categories'] = $this->Sale_model->getFoodMenuCategories($company_id, 'tbl_food_menu_categories');
-        $data['item_menus'] = $this->Sale_model->getAllItemmenus();
-        $data['customers'] = $this->Common_model->getAllByCompanyIdForDropdown($company_id, 'tbl_customers');
-        $data['food_menus'] = $this->Sale_model->getAllFoodMenus();
-        $data['menu_categories'] = $this->Sale_model->getAllMenuCategories();
-        $data['menu_modifiers'] = $this->Sale_model->getAllMenuModifiers();
-        $data['waiters'] = $this->Sale_model->getWaitersForThisCompany($company_id,'tbl_users');
-        $data['new_orders'] = $this->get_new_orders();
-        $data['payment_methods'] = $this->Sale_model->getAllPaymentMethods();
-        $data['notifications'] = $this->get_new_notification();
-
-        $this->set_response($data,REST_Controller::HTTP_OK);
-    }
-    public function waiters_get(){
-        $this->db->select("*");
-      $this->db->from('tbl_users');
-      $this->db->where("designation", 'Waiter');
-      $this->db->order_by('name', 'ASC');
-      $data['waiters'] = $this->db->get()->result();
-        $this->set_response($data,REST_Controller::HTTP_OK); 
-    }
-    public function login_post(){
-        foreach($this->post as $post){
-            $email_address = $post[0]['value'];
-            $password = $post[1]['value'];
+        if (!$email || !$password) {
+            $this->response(false, 'Email and password required');
         }
-        $data = array();
+
+        $user = $this->db->get_where('tbl_users', ['email_address' => $email, 'del_status' => 'Live'])->row();
+        
+        if ($user) {
+            $is_valid = false;
+            // Password verification using BCrypt migration standard
+            if (password_verify($password, $user->password) || $password === $user->password) {
+                $is_valid = true;
+            }
+            if ($is_valid) {
+                // Generate secure cryptographic token
+                $token_plaintext = bin2hex(random_bytes(32)); 
+                $token_hash = hash('sha256', $token_plaintext);
                 
-        $data['error'] = '';
+                // Set expiry (e.g. 30 days)
+                $expires_at = date('Y-m-d H:i:s', strtotime('+30 days'));
 
-        $user_information = $this->Authentication_model->getUserInformation($email_address, $password);
+                $this->db->insert('tbl_api_tokens', [
+                    'user_id' => $user->id,
+                    'token_hash' => $token_hash,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'expires_at' => $expires_at,
+                    'revoked' => 0
+                ]);
 
-        //If user exists
-        if ($user_information) {
-
-            //If the user is Active
-            if ($user_information->active_status == 'Active') {
-                $company_info = $this->Authentication_model->getCompanyInformation($user_information->company_id);
-                $setting_info = $this->Common_model->getByCompanyId($user_information->company_id, "tbl_settings");
-
-
-                $menu_access_information = $this->Authentication_model->getMenuAccessInformation($user_information->id);
-
-                $menu_access_container = array();
-                if (isset($menu_access_information)) {
-                    foreach ($menu_access_information as $value) {
-                        array_push($menu_access_container, $value->controller_name);
-                    }
-                }
-
-                // echo "string";
-
-
-                $login_session = array();
-                //User Information
-                $login_session['user_id'] = $user_information->id;
-                $login_session['full_name'] = $user_information->full_name;
-                $login_session['phone'] = $user_information->phone;
-                $login_session['email_address'] = $user_information->email_address; 
-                $login_session['role'] = $user_information->role;
-                $login_session['company_id'] = $user_information->company_id; 
-
-                if ($user_information->role != 'Admin') {
-                    $login_session['outlet_id'] = $user_information->outlet_id;
-                }
-
-                //Company Information 
-
-                $login_session['currency'] = $setting_info->currency;
-                $login_session['time_zone'] = $setting_info->time_zone;
-                $login_session['date_format'] = $setting_info->date_format;
-
-                //Menu access information
-                $login_session['menu_access'] = $menu_access_container;
-
-
-                //Set session
-                $this->session->set_userdata($login_session);
-
-                $outlet_details = $this->Common_model->getDataById($user_information->outlet_id, 'tbl_outlets');
-
-                if ($user_information->role == 'Admin') {
-                } else {
-                    if($user_information->role=="Kitchen User"){
-                        $outlet_id = $user_information->outlet_id;
-                        $outlet_session = array();
-                        $outlet_session['outlet_id'] = $outlet_details->id;
-                        $outlet_session['outlet_name'] = $outlet_details->outlet_name;
-                        $outlet_session['address'] = $outlet_details->address;
-                        $outlet_session['outlet_phone'] = $outlet_details->phone;
-                        $outlet_session['collect_vat'] = $outlet_details->collect_vat;
-                        $outlet_session['vat_reg_no'] = $outlet_details->vat_reg_no;
-                        $outlet_session['invoice_print'] = $outlet_details->invoice_print;  
-                        $outlet_session['invoice_footer'] = $outlet_details->invoice_footer;  
-                        $outlet_session['pre_or_post_payment'] = $outlet_details->pre_or_post_payment;  
-                        $this->session->set_userdata($outlet_session);
-                    }elseif($user_information->role=="Bar User"){
-                        $outlet_id = $user_information->outlet_id;
-                        $outlet_session = array();
-                        $outlet_session['outlet_id'] = $outlet_details->id;
-                        $outlet_session['outlet_name'] = $outlet_details->outlet_name;
-                        $outlet_session['address'] = $outlet_details->address;
-                        $outlet_session['outlet_phone'] = $outlet_details->phone;
-                        $outlet_session['collect_vat'] = $outlet_details->collect_vat;
-                        $outlet_session['vat_reg_no'] = $outlet_details->vat_reg_no;
-                        $outlet_session['invoice_print'] = $outlet_details->invoice_print;  
-                        $outlet_session['invoice_footer'] = $outlet_details->invoice_footer;  
-                        $outlet_session['pre_or_post_payment'] = $outlet_details->pre_or_post_payment;  
-                        $this->session->set_userdata($outlet_session);
-                    }elseif($user_information->role=="POS User")
-                    {
-                        $outlet_id = $user_information->outlet_id;
-                        $outlet_session = array();
-                        $outlet_session['outlet_id'] = $outlet_details->id;
-                        $outlet_session['outlet_name'] = $outlet_details->outlet_name;
-                        $outlet_session['address'] = $outlet_details->address;
-                        $outlet_session['outlet_phone'] = $outlet_details->phone;
-                        $outlet_session['collect_vat'] = $outlet_details->collect_vat;
-                        $outlet_session['vat_reg_no'] = $outlet_details->vat_reg_no;
-                        $outlet_session['invoice_print'] = $outlet_details->invoice_print;  
-                        $outlet_session['invoice_footer'] = $outlet_details->invoice_footer;  
-                        $outlet_session['pre_or_post_payment'] = $outlet_details->pre_or_post_payment;  
-                        $this->session->set_userdata($outlet_session);
-                    }else{
-                        $outlet_id = $user_information->outlet_id;
-                        $outlet_session = array();
-                        $outlet_session['outlet_id'] = $outlet_details->id;
-                        $outlet_session['outlet_name'] = $outlet_details->outlet_name;
-                        $outlet_session['address'] = $outlet_details->address;
-                        $outlet_session['outlet_phone'] = $outlet_details->phone;
-                        $outlet_session['collect_vat'] = $outlet_details->collect_vat;
-                        $outlet_session['vat_reg_no'] = $outlet_details->vat_reg_no;
-                        $outlet_session['invoice_print'] = $outlet_details->invoice_print;  
-                        $outlet_session['invoice_footer'] = $outlet_details->invoice_footer;  
-                        $outlet_session['pre_or_post_payment'] = $outlet_details->pre_or_post_payment;  
-                        $this->session->set_userdata($outlet_session);
-
-                    }
-
-                    
-                }
-            } else {
-                $data['error'] = ($data['error']=='')?'User is not active':'|User is not active';
+                $this->response(true, 'Login successful', [
+                    // Provide the raw token. ONLY stored hashed in DB.
+                    'token' => $token_plaintext,
+                    'expires_at' => $expires_at,
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->full_name,
+                        'email' => $user->email_address,
+                        'role' => $user->role,
+                        'company_id' => $user->company_id,
+                        'outlet_id' => $user->outlet_id
+                    ]
+                ]);
             }
-        } else {
-            $data['error'] = ($data['error']=='')?'Incorrect Email/Password':'|Incorrect Email/Password';
         }
-        $data['users'] = $user_information;        
-        $this->set_response($data,REST_Controller::HTTP_OK);           
-    }
-    public function pos_info_get()
-    {
-        $data['name'] = 'Mohammad Al-Nur Sarwer (Arif)';
-        $data['roll'] = 'CSE 01005729';
-        $this->set_response($data,REST_Controller::HTTP_OK);
+
+        $this->response(false, 'Invalid credentials');
     }
 
+    public function products() {
+        if ($this->input->server('REQUEST_METHOD') !== 'GET') {
+            $this->response(false, 'Method not allowed');
+        }
+        
+        $user = $this->check_auth();
+
+        // Use safe explicit adapter, avoiding session dependency
+        $products = $this->Sale_model->getApiItemMenus($user->company_id);
+        $this->response(true, 'Products retrieved successfully', $products);
+    }
+
+    public function me() {
+        if ($this->input->server('REQUEST_METHOD') !== 'GET') {
+            $this->response(false, 'Method not allowed');
+        }
+        
+        $user = $this->check_auth();
+        
+        $this->response(true, 'User details retrieved', [
+             'id' => $user->id,
+             'name' => $user->full_name,
+             'email' => $user->email_address,
+             'role' => $user->role,
+             'company_id' => $user->company_id,
+             'outlet_id' => $user->outlet_id
+        ]);
+    }
 }

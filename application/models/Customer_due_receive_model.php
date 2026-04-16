@@ -16,9 +16,11 @@ class Customer_due_receive_model extends CI_Model {
     public function getCustomerDue($customer_id) {
         $outlet_id = $this->session->userdata('outlet_id');
 
-        $customer_due = $this->db->query("SELECT SUM(due_amount) as due FROM tbl_sales WHERE customer_id=$customer_id and outlet_id=$outlet_id and del_status='Live'")->row(); 
+        $sql1 = "SELECT SUM(due_amount) as due FROM tbl_sales WHERE customer_id = ? and outlet_id = ? and del_status='Live'";
+        $customer_due = $this->db->query($sql1, array($customer_id, $outlet_id))->row(); 
  
-        $customer_payment = $this->db->query("SELECT SUM(amount) as amount FROM tbl_customer_due_receives WHERE customer_id=$customer_id and outlet_id=$outlet_id and del_status='Live'")->row();
+        $sql2 = "SELECT SUM(amount) as amount FROM tbl_customer_due_receives WHERE customer_id = ? and outlet_id = ? and del_status='Live'";
+        $customer_payment = $this->db->query($sql2, array($customer_id, $outlet_id))->row();
 
         $remaining_due = $customer_due->due - $customer_payment->amount;
 
@@ -26,8 +28,8 @@ class Customer_due_receive_model extends CI_Model {
  
     }
     public function generateReferenceNo($outlet_id) {
-        $reference_no = $this->db->query("SELECT count(id) as reference_no
-               FROM tbl_customer_due_receives where outlet_id=$outlet_id")->row('reference_no');
+        $sql = "SELECT count(id) as reference_no FROM tbl_customer_due_receives where outlet_id = ?";
+        $reference_no = $this->db->query($sql, array($outlet_id))->row('reference_no');
         $reference_no = str_pad($reference_no + 1, 6, '0', STR_PAD_LEFT);
         return $reference_no;
     }

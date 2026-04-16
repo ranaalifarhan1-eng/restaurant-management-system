@@ -16,9 +16,11 @@ class Supplier_payment_model extends CI_Model {
 
         $outlet_id = $this->session->userdata('outlet_id');
 
-        $supplier_due = $this->db->query("SELECT SUM(due) as due FROM tbl_purchase WHERE supplier_id=$supplier_id and outlet_id=$outlet_id and del_status='Live'")->row();
+        $sql1 = "SELECT SUM(due) as due FROM tbl_purchase WHERE supplier_id = ? and outlet_id = ? and del_status='Live'";
+        $supplier_due = $this->db->query($sql1, array($supplier_id, $outlet_id))->row();
 
-        $supplier_payment = $this->db->query("SELECT SUM(amount) as amount FROM tbl_supplier_payments WHERE supplier_id=$supplier_id and outlet_id=$outlet_id and del_status='Live'")->row();
+        $sql2 = "SELECT SUM(amount) as amount FROM tbl_supplier_payments WHERE supplier_id = ? and outlet_id = ? and del_status='Live'";
+        $supplier_payment = $this->db->query($sql2, array($supplier_id, $outlet_id))->row();
 
         $remaining_due = $supplier_due->due - $supplier_payment->amount;
 

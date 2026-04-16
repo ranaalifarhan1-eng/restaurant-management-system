@@ -79,6 +79,16 @@ class Sale_model extends CI_Model {
         return $result;
     }
 
+    public function getApiItemMenus($company_id) {
+        $sql = "SELECT fm.id, fm.code, fm.name, fm.sale_price, fm.photo, fmc.category_name, v.percentage
+          FROM tbl_food_menus fm
+          LEFT JOIN tbl_food_menu_categories fmc ON fm.category_id = fmc.id
+          LEFT JOIN tbl_vats v ON fm.vat_id = v.id
+          WHERE fm.company_id = ? AND fm.del_status = 'Live'  
+          ORDER BY fm.name ASC";
+        return $this->db->query($sql, array($company_id))->result();
+    }
+
     public function getFoodMenuCategories($company_id) {
         $result = $this->db->query("SELECT * 
           FROM tbl_food_menu_categories 
