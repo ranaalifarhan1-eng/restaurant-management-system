@@ -7,24 +7,6 @@ var gst_state_code = $('base[data-gst-state-code]').attr('data-gst-state-code');
 
 
 $(document).ready(function(){
-	function select_running_order($order){
-		$('.holder .order_details .single_order').attr('data-selected','unselected');
-		$('.holder .order_details .single_order').css('background-color','#ffffff');
-		$order.attr('data-selected','selected');
-		$order.css('background-color','#b6d6f6');
-		$('#refresh_order').css('color','#dc3545');
-	}
-	function open_running_order_details($containers){
-		$containers.addClass('is-open').css('height','100%');
-		$containers.find('.running_order_right_arrow').addClass('rotated');
-	}
-	function close_running_order_details($containers){
-		if(typeof $containers === 'undefined'){
-			$containers = $('.holder .order_details .inside_single_order_container');
-		}
-		$containers.removeClass('is-open').css('height','18px');
-		$containers.find('.running_order_right_arrow').removeClass('rotated');
-	}
 	$('#edit_customer').on('click',function(){
 		var selected_customer = $('#walk_in_customer').val();
 		if(selected_customer!=""){
@@ -90,22 +72,25 @@ $(document).ready(function(){
         $('#single_table_order_details_bottom_'+table_id).hide();
         // $('#single_table_order_details_top_'+table_id).remove();
 	});
-	$(document).on('click','.running_order_right_arrow',function(e){
-		e.stopPropagation();
-		var $order = $(this).closest('.single_order');
-		var $container = $order.find('.inside_single_order_container').first();
-		var should_open = !$container.hasClass('is-open');
-		select_running_order($order);
-		close_running_order_details();
-		if(should_open){
-			open_running_order_details($container);
+	$(document).on('click','.running_order_right_arrow',function(){
+		var sale_id = $(this).attr('id').substr(26);
+		var flexible_div = $(this).parent().parent().height();
+		$('.running_order_right_arrow').parent().parent().css('height','18px');
+		if(parseFloat(flexible_div)==parseFloat(18)){
+			 $(this).parent().parent().css('height','100%');
+			 $(this).addClass('rotated');
+		}else if(parseFloat(flexible_div)>parseFloat(18)){
+			$(this).parent().parent().css('height','18px');
+			$(this).removeClass('rotated'); 
 		}
 	});
 	$(document).on('focus','#search_running_orders',function(){
-		open_running_order_details($('.holder .order_details .inside_single_order_container'));
+		$('.running_order_right_arrow').parent().parent().css('height','100%');
+		$('.running_order_right_arrow').addClass('rotated');
 	});
 	$(document).on('blur','#search_running_orders',function(){
-		close_running_order_details();
+		$('.running_order_right_arrow').parent().parent().css('height','18px');
+		$('.running_order_right_arrow').removeClass('rotated');
 	});
 	$(document).on('click','.remove_table_order',function(){
 		var orders_table_id = $(this).attr('id').substr(19);
@@ -3000,12 +2985,22 @@ function show_all_items() {
 		set_new_orders_to_view_for_interval();
 	});
 	$(document).on('click','.holder .order_details .single_order',function(){
-		var $container = $(this).find('.inside_single_order_container').first();
-		var should_open = !$container.hasClass('is-open');
-		select_running_order($(this));
-		close_running_order_details();
-		if(should_open){
-			open_running_order_details($container);
+		var sale_id = $(this).attr('id').substr(6);
+		$('.holder .order_details .single_order').attr('data-selected','unselected');
+		$('.holder .order_details .single_order').css('background-color','#ffffff');
+		$(this).attr('data-selected','selected');
+		$(this).css('background-color','#b6d6f6');
+		$('#refresh_order').css('color','#dc3545');
+
+		var sale_id = $(this).attr('id').substr(6);
+		var flexible_div = $(this).find('.inside_single_order_container').height();
+		$('.running_order_right_arrow').parent().parent().css('height','18px');
+		if(parseFloat(flexible_div)==parseFloat(18)){
+			 $(this).find('.inside_single_order_container').css('height','100%');
+			 $(this).find('.running_order_right_arrow').addClass('rotated');
+		}else if(parseFloat(flexible_div)>parseFloat(18)){
+			$(this).find('.inside_single_order_container').css('height','18px');
+			$(this).find('.running_order_right_arrow').removeClass('rotated'); 
 		}
 	});
 	$('#modify_order').on('click',function(){
