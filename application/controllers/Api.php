@@ -50,6 +50,17 @@ class Api extends CI_Controller {
         $this->response(false, 'Unauthorized. Invalid, expired, or revoked token.', [], 401);
     }
 
+    private function set_company_timezone($company_id) {
+        $this->db->select('time_zone');
+        $this->db->from('tbl_settings');
+        $this->db->where('company_id', $company_id);
+        $zone_name = $this->db->get()->row();
+
+        if ($zone_name && !empty($zone_name->time_zone)) {
+            date_default_timezone_set($zone_name->time_zone);
+        }
+    }
+
     private function get_request_payload(&$raw_invalid_json = false) {
         $raw_input = trim(file_get_contents('php://input'));
         if ($raw_input !== '') {
@@ -741,6 +752,7 @@ class Api extends CI_Controller {
         }
 
         $user = $this->check_auth();
+        $this->set_company_timezone($user->company_id);
 
         $raw_invalid_json = false;
         $input = $this->get_request_payload($raw_invalid_json);
