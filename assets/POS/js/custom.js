@@ -74,14 +74,12 @@ $(document).ready(function(){
 	});
 	$(document).on('click','.running_order_right_arrow',function(){
 		var sale_id = $(this).attr('id').substr(26);
-		var flexible_div = $(this).parent().parent().height();
+		var is_open = $(this).hasClass('rotated');
 		$('.running_order_right_arrow').parent().parent().css('height','18px');
-		if(parseFloat(flexible_div)==parseFloat(18)){
+		$('.running_order_right_arrow').removeClass('rotated');
+		if(!is_open){
 			 $(this).parent().parent().css('height','100%');
 			 $(this).addClass('rotated');
-		}else if(parseFloat(flexible_div)>parseFloat(18)){
-			$(this).parent().parent().css('height','18px');
-			$(this).removeClass('rotated'); 
 		}
 	});
 	$(document).on('focus','#search_running_orders',function(){
@@ -2984,7 +2982,7 @@ function show_all_items() {
 		$('#stop_refresh_for_search').html('yes');
 		set_new_orders_to_view_for_interval();
 	});
-	$(document).on('click','.holder .order_details .single_order',function(){
+	$(document).on('click','.holder .order_details .single_order',function(e){
 		var sale_id = $(this).attr('id').substr(6);
 		$('.holder .order_details .single_order').attr('data-selected','unselected');
 		$('.holder .order_details .single_order').css('background-color','#ffffff');
@@ -2992,15 +2990,16 @@ function show_all_items() {
 		$(this).css('background-color','#b6d6f6');
 		$('#refresh_order').css('color','#dc3545');
 
+		if($(e.target).hasClass('running_order_right_arrow')){
+			return;
+		}
 		var sale_id = $(this).attr('id').substr(6);
-		var flexible_div = $(this).find('.inside_single_order_container').height();
+		var is_open = $(this).find('.running_order_right_arrow').hasClass('rotated');
 		$('.running_order_right_arrow').parent().parent().css('height','18px');
-		if(parseFloat(flexible_div)==parseFloat(18)){
+		$('.running_order_right_arrow').removeClass('rotated');
+		if(!is_open){
 			 $(this).find('.inside_single_order_container').css('height','100%');
 			 $(this).find('.running_order_right_arrow').addClass('rotated');
-		}else if(parseFloat(flexible_div)>parseFloat(18)){
-			$(this).find('.inside_single_order_container').css('height','18px');
-			$(this).find('.running_order_right_arrow').removeClass('rotated'); 
 		}
 	});
 	$('#modify_order').on('click',function(){
