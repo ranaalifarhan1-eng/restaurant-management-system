@@ -148,6 +148,22 @@ class Api extends CI_Controller {
         return $this->db->get_where('tbl_sales', ['offline_uuid' => $offline_uuid])->row();
     }
 
+    private function append_existing_sale_fields(array $sale_data, array $candidate_fields) {
+        static $sales_columns = null;
+
+        if ($sales_columns === null) {
+            $sales_columns = array_flip($this->db->list_fields('tbl_sales'));
+        }
+
+        foreach ($candidate_fields as $field_name => $field_value) {
+            if (isset($sales_columns[$field_name])) {
+                $sale_data[$field_name] = $field_value;
+            }
+        }
+
+        return $sale_data;
+    }
+
     private function get_order_tables_by_sale_id($sale_id) {
         return $this->db->select('table_id, persons')
             ->from('tbl_orders_table')
@@ -678,15 +694,13 @@ class Api extends CI_Controller {
             'order_status' => 1,
             'sale_vat_objects' => json_encode($sale_vat_objects),
             'order_type' => (string) $order_type,
+        ];
+
+        $sale_data = $this->append_existing_sale_fields($sale_data, [
             'offline_uuid' => trim((string) $input['offline_uuid']),
             'offline_order_no' => $offline_order_no !== '' ? $offline_order_no : null,
             'device_id' => trim((string) $input['device_id']),
-            'sync_status' => 'Synced',
-            'sync_version' => 1,
-            'synced_at' => $now,
-            'client_created_at' => $client_created_at ?: null,
-            'client_updated_at' => $client_updated_at ?: null,
-        ];
+        ]);
 
         $orders_table_payload = [];
         $response_tables = [];
@@ -705,9 +719,9 @@ class Api extends CI_Controller {
 
         $response_data = [
             'result' => 'created',
-            'offline_uuid' => $sale_data['offline_uuid'],
-            'offline_order_no' => $sale_data['offline_order_no'],
-            'device_id' => $sale_data['device_id'],
+            'offline_uuid' => trim((string) $input['offline_uuid']),
+            'offline_order_no' => $offline_order_no !== '' ? $offline_order_no : null,
+            'device_id' => trim((string) $input['device_id']),
             'order_status' => 1,
             'sync_status' => 'Synced',
             'sync_version' => 1,
